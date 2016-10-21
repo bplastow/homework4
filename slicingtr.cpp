@@ -342,6 +342,7 @@ void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& widt
 	int nmoves=10, iseed = 3, n=6, mt=12, uphill, reject, j=0, i=0, N;
 	ststack *stack;
 	int size;
+	stnode *root3;
 
 	bool test=true;
 	vector<char> newE ,E, Best;
@@ -681,6 +682,11 @@ void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& widt
         			{
 						Best[r]=newE[r];
         			}
+
+					stack = newstack();
+					size = Best.size()-1;
+					root3 = tree_from_NPE(Best, size, stack);
+
 					BestCost=costNew;
 				}
 			//	uphill+=1;//increases since it was an uphill movement
@@ -695,9 +701,7 @@ void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& widt
 
 	}while(((reject/mt) <= .95) && (t>epsilon));
 
-	stack = newstack();
-	size = Best.size()-1;
-	stnode *root3 = tree_from_NPE(Best, size, stack);
+
 	printNPE(root3);
 	cout<<"Best cost:"<<BestCost;
 

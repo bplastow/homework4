@@ -307,7 +307,7 @@ void stackclear(ststack *stack)
 /**********************************************************************************************
  * function to create a tree from a given polish expression using pushes and pops from the stack
  **********************************************************************************************/
-stnode *tree_from_NPE(char *expr,int size, ststack *stack)
+stnode *tree_from_NPE(vector<char> &expr,int size, ststack *stack)
 {
 	int i;
 	stnode *node=NULL, *left, *right;   //temporary node values to help
@@ -336,55 +336,369 @@ stnode *tree_from_NPE(char *expr,int size, ststack *stack)
 }
 
 
-void annealing()
+void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& width, vector<double>& height)
 {
-	double P = 0.99, T0 = 20/log(P), M = 0, epsilon, r = 0.85, delta_cost, newcost, oldcost;
-	int MT = 0, uphill = 0, reject = 0, N;
-	double T = T0;
-	bool done;
-	do{
-		MT = uphill = reject = 0;
-		do{
-			switch(M)
+	double BestCost, costOfbest, ratio=0.85, lamdatf=.95, P=.99, epsilon=.001, t0=0, t, oldCost=0, costNew=0, changeOfcost=0;
+	int nmoves=10, iseed = 3, n=6, mt=12, uphill, reject, j=0, i=0, N;
+	ststack *stack;
+	int size;
+
+	bool test=true;
+	vector<char> newE ,E, Best;
+	for(int r=0; r<Enot.size(); r++)
+	{E.push_back(Enot[r]); Best.push_back(Enot[r]); newE.push_back(Enot[r]);}
+	vector <double> right, left;
+	stack = newstack();
+	size = newE.size()-1;
+	stnode *root = tree_from_NPE(newE, size, stack);//creates a node for the base of tree
+	size=newE.size();
+	assignValues(value, width, height, root, size);
+	oldCost= areaFunct(right, left, root);
+	BestCost=oldCost;
+	//deleteTree(root);
+	double avgCost[1000];
+	int z=0;
+	while(z<1000)
+	{
+		//	i=newE.size()-1;
+			i=rand()%newE.size(); // gets the random number to choose which value to randomly move
+			switch (rand()%3+1) // chooses a random number from 1 to 3 to choose a case
+		//	switch (3)
 			{
-				case 1:
-					NE = swap(E,ei,ej);
-					break;
-				case 2:
-					NE = compliment(E,C);
-					break;
-				case 3:
-					done = false;
-					while(!done)
+					case 1:{
+
+						while(newE[i] == 'V' || newE[i] == 'H')// checks to make sure that the random value is an operand not an operator
+                                                {
+							i++;
+							if(newE.size()== i)
+								{
+									i=0;
+								}
+						}//increments it if it is an operator
+						if(i+1 == newE.size())
+							{
+								j=i-1;
+								test=false;
+							}//checks to make sure it isn't at end of the array, if so starts j decreasing
+						else
+							{
+								j=i+1;
+							} //else it starts j increasing to find the next p
+						while(newE[j] == 'V' || newE[j] == 'H')// helps to fin the next opreand
+                                                {
+							if(test)
+							{
+								if(j+1 == newE.size())
+								{
+									j=i-1;
+									test=false;
+								}
+								else
+								{
+									j++; if(i== j){j++;}
+								}
+							}
+							else
+							{
+								j--; if(i==j){j--;}
+							}}//finds it wheter it is is before or after the value
+						char tempvalue = newE[i]; //temp value
+						newE[i]=newE[j]; //stores it
+						newE[j]=tempvalue; // stores the other value
+						//swap values
+						break;//leaves case statement
+						}
+					case 2:{
+							while(newE[i] != 'V' && newE[i] != 'H')//checks to make sure that i find an operator
+							{i++; if(i == newE.size()){i=0;}} //increases if it is an operand
+							j=i-1;
+							while(newE[j] == 'V' || newE[j] == 'H') // keeps flipping for the line of v and h's
+                                                        {
+                                                                if(newE[j] == 'V') // checks if its a v and changes it to h
+                                                                {
+                                                                        newE[j]='H';
+                                                                }
+                                                                else  // else changes it to v since it was an H
+                                                                {
+                                                                        newE[j]='V';
+                                                                }
+                                                                j--;//moves along the array
+                                                        }
+							while(newE[i] == 'V' || newE[i] == 'H') // keeps flipping for the line of v and h's
+							{
+								if(newE[i] == 'V') // checks if its a v and changes it to h
+								{
+									newE[i]='H';
+								}
+								else  // else changes it to v since it was an H
+								{
+									newE[i]='V';
+								}
+								i++;//moves along the array
+							}
+							break; //exits the casement
+						}
+					case 3:
+						{
+							if(newE.size()-1==i) // checks to see if it the last elment, if so it starts at the first of the array
+							{i=0;}
+							//looks for an operand and operator right next to each other to perform the m3 swap
+							while(((newE[i]=='V' || newE[i] == 'H')&&(newE[i+1]=='V' || newE[i+1] =='H')) || ((newE[i]!='V' && newE[i]!='H')&&(newE[i+1]!='V' && newE[i+1] != 'H')))
+                                                	 {
+								i++;// moves to next element to check
+								if(i == newE.size()-2 || i>newE.size()-2 ) //checks to make sure we aren't on the last two values, if so starts it over at 0
+								{i=0;}
+							 }
+							char tempValue=newE[i];// stores the value temporarily
+							newE[i]=newE[i+1];// stores the other value to swap
+							newE[i+1]=tempValue; //finishes the swap
+							int operators=0, operands=0;
+							test=true;
+							for(int q=0; q<newE.size(); q++) //balloting property
+							{
+								if(newE[q] == 'V' || newE[q] == 'H')
+                                                        	{operands+=1;}
+								else
+								{operators+=1;}
+								if(operators<=operands) //checks to see that there are more operands than operators to ensure its valid
+								{test=false;} //marks if its not valid
+							}
+							if(i>0)
+							{if (newE[i-1] == newE[i])
+								{test=false;}
+							}
+							if(i<newE.size()-2)
+							{ if(newE[i+1]==newE[i+2])
+								{test=false;}
+							}
+							if(!test)
+							{reject+=1;
+							char tempValue=newE[i];// stores the value temporarily
+                                                        newE[i]=newE[i+1];// stores the other value to swap
+                                                        newE[i+1]=tempValue; //finishes the swap
+							} // rejects it since its not proven
+							break; //leaves the case statemts
+						}
+
+				}
+
+		stack = newstack();
+		size = newE.size()-1;
+		stnode *root = tree_from_NPE(newE, size, stack);//creates a node for the base of tree
+		size=newE.size();
+		assignValues(value, width, height, root, size);
+		costNew= areaFunct(right, left, root); //finds the cost of the area
+		deleteTree(root);
+		avgCost[z]=costNew - oldCost;// checks the different in cost
+		z++;
+		}
+
+	int averageNumbers;
+	for(int m=0; m<1000; m++)
+	{
+
+		if(avgCost[m]>0)
+		{
+			t0+=avgCost[m];
+			averageNumbers++;
+		}
+	}
+	t0=t0/averageNumbers;
+	t0=t0/log(P);
+	n=Enot.size();
+	N = n*nmoves;
+	t = t0;
+	test=true;
+	newE.clear(); Best.clear(); E.clear();
+	for(int r=0; r<Enot.size(); r++)
+	{
+		E.push_back(Enot[r]);
+		Best.push_back(Enot[r]);
+		newE.push_back(Enot[r]);
+	}
+	size = newE.size()-1;
+	stnode *root2 = tree_from_NPE(newE, size, stack);//creates a node for the base of tree
+	size = newE.size();
+	assignValues(value, width, height, root2, size);
+	oldCost= areaFunct(right, left, root2);
+	BestCost=oldCost;
+	deleteTree(root);
+	srand(iseed);
+	int count=0;
+	do // checks to see if the temp is greater than epsilon, or if the reject criteria is greater than 95% to know to stop
+	{
+		mt=uphill=reject=0; // intializes everything to 0
+		do //checks to see if uphill and temp are good
+		{
+		//	i=newE.size()-1;
+			i=rand()%newE.size(); // gets the random number to choose which value to randomly move
+			switch (rand()%3+1) // chooses a random number from 1 to 3 to choose a case
+		//	switch (3)
+			{
+				case 1:{
+
+						while(newE[i] == 'V' || newE[i] == 'H')// checks to make sure that the random value is an operand not an operator
+                                                {
+							i++;
+							if(newE.size()== i)
+							{
+								i=0;
+							}
+						}//increments it if it is an operator
+						if(i+1 == newE.size())
+						{
+							j=i-1;
+							test=false;
+						}//checks to make sure it isn't at end of the array, if so starts j decreasing
+						else
+						{
+							j=i+1;
+						} //else it starts j increasing to find the next p
+						while(newE[j] == 'V' || newE[j] == 'H')// helps to fin the next opreand
+                                                {
+							if(test)
+							{
+								if(j+1 == newE.size())
+								{
+									j=i-1;
+									test=false;
+								}
+								else
+								{
+									j++; if(i== j){j++;}
+								}
+							}
+							else
+							{
+								j--; if(i==j){j--;}
+							}
+						}//finds it wheter it is is before or after the value
+						char tempvalue = newE[i]; //temp value
+						newE[i]=newE[j]; //stores it
+						newE[j]=tempvalue; // stores the other value
+						//swap values
+						break;//leaves case statement
+						}
+					case 2:
 					{
-
+							while(newE[i] != 'V' && newE[i] != 'H')//checks to make sure that i find an operator
+							{
+								i++; if(i == newE.size()){i=0;}} //increases if it is an operand
+							    j=i-1;
+							    while(newE[j] == 'V' || newE[j] == 'H') // keeps flipping for the line of v and h's
+							    {
+							    	if(newE[j] == 'V') // checks if its a v and changes it to h
+                                    {
+							    		newE[j]='H';
+                                    }
+                                    else  // else changes it to v since it was an H
+                                    {
+                                        newE[j]='V';
+                                    }
+                                    j--;//moves along the array
+                                }
+							    while(newE[i] == 'V' || newE[i] == 'H') // keeps flipping for the line of v and h's
+							    {
+							    	if(newE[i] == 'V') // checks if its a v and changes it to h
+							    	{
+							    		newE[i]='H';
+							    	}
+							    	else  // else changes it to v since it was an H
+							    	{
+							    		newE[i]='V';
+							    	}
+							    	i++;//moves along the array
+							    }
+							    break; //exits the casement
 					}
-					NE = swap(E,ei,ei+1);
-					break;
-			}
-			MT = MT + 1;
-			delta_cost = cost(NE) - cost(E);
-			if(delta_cost <= 0)
+					case 3:
+					{
+							if(newE.size()-1==i) // checks to see if it the last elment, if so it starts at the first of the array
+							{i=0;}
+							//looks for an operand and operator right next to each other to perform the m3 swap
+							while(((newE[i]=='V' || newE[i] == 'H')&&(newE[i+1]=='V' || newE[i+1] =='H')) || ((newE[i]!='V' && newE[i]!='H')&&(newE[i+1]!='V' && newE[i+1] != 'H')))
+                                                	 {
+								i++;// moves to next element to check
+								if(i == newE.size()-2 || i>newE.size()-2 ) //checks to make sure we aren't on the last two values, if so starts it over at 0
+								{i=0;}
+							 }
+							char tempValue=newE[i];// stores the value temporarily
+							newE[i]=newE[i+1];// stores the other value to swap
+							newE[i+1]=tempValue; //finishes the swap
+							int operators=0, operands=0;
+							test=true;
+							for(int q=0; q<newE.size(); q++) //balloting property
+							{
+								if(newE[q] == 'V' || newE[q] == 'H')
+                                                        	{operands+=1;}
+								else
+								{operators+=1;}
+								if(operators<=operands) //checks to see that there are more operands than operators to ensure its valid
+								{test=false;} //marks if its not valid
+							}
+							if(i>0)
+							{if (newE[i-1] == newE[i])
+								{test=false;}
+							}
+							if(i<newE.size()-2)
+							{ if(newE[i+1]==newE[i+2])
+								{test=false;}
+							}
+							if(!test)
+							{reject+=1;
+							char tempValue=newE[i];// stores the value temporarily
+                                                        newE[i]=newE[i+1];// stores the other value to swap
+                                                        newE[i+1]=tempValue; //finishes the swap
+							} // rejects it since its not proven
+							break; //leaves the case statemts
+					}
+			} count++;
+		mt=mt+1; //increases move count
+		vector <double> right, left;
+		stack = newstack();
+		size = newE.size()-1;
+		stnode *root = tree_from_NPE(newE, size, stack);//creates a node for the base of tree
+		size=newE.size();
+		assignValues(value, width, height, root, size);
+		costNew= areaFunct(right, left, root); //finds the cost of the area
+		deleteTree(root);
+		changeOfcost=costNew - oldCost;// checks the different in cost
+		double testVal= exp(-changeOfcost/t);
+		double random = rand()%100+1;
+		random=random/100;
+			if(changeOfcost<0 || random < testVal ) // checks to see if the change is better or if it changes randomly
 			{
-				if(delta_cost > 0)
+				if(changeOfcost > 0) // stores E as the new e since it was accepted
 				{
-					uphill = uphill + 1;
+					for(int r=0; r<Enot.size(); r++)
+                                        {E[r]=newE[r];}
+					uphill+=1;
 				}
-				E = NE;
-				if(cost(E) < cost(Best))
+				if(costNew < BestCost)
 				{
-					Best = E;
-				}
-				else
-				{
-					reject = reject + 1;
-				}
-			}
-		}while((uphill <= N) && (MT <= 2*N));
-	T = r*T;
-	}while((reject/MT <= 0.95) &&(T >= epsilon));
 
-	stnode *root2 = new stnode();
-	root2->left = root2->right = NULL;
+					for(int r=0; r<Enot.size(); r++)
+        			{
+						Best[r]=newE[r];
+        			}
+					BestCost=costNew;
+				}
+			//	uphill+=1;//increases since it was an uphill movement
+			}
+			else
+			{
+					reject+=1; //rejects it because it isn't a good move
+			}
+		oldCost=costNew;
+		}while((uphill <= N) && (mt <= 2*N));
+		t=lamdatf*t;
+
+	}while(((reject/mt) <= .95) && (t>epsilon));
+
+	stack = newstack();
+	size = Best.size()-1;
+	stnode *root3 = tree_from_NPE(Best, size, stack);
+	printNPE(root3);
+	cout<<"Best cost:"<<BestCost;
 
 }

@@ -37,7 +37,7 @@ struct ststack
 	int top;
 };
 
-stnode *tree_from_NPE(char *expr, int size, ststack *stack);
+stnode *tree_from_NPE(vector<char> &expr, int size, ststack *stack);
 ststack *newstack(void);
 void stpush(ststack *stack, stnode *node);
 stnode *stpop(ststack *stack);
@@ -54,6 +54,7 @@ double areaFunct(vector<double> &right, vector<double> &left, stnode *pointer);
 void readin(vector<char> &value, vector<double> &width, vector<double> &height);
 void deleteTree(stnode *pointer);
 
+void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& width, vector<double>& height);
 
 
 #endif /* SLICINGTR_H_ */

@@ -53,6 +53,7 @@ int main(){
 	cout << endl;
 
 	annealingFunc(NPE, value, width, height);
+	cout << endl;
 
 	return 0;
 }

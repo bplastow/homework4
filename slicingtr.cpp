@@ -1,12 +1,13 @@
 /********************************************************************************************
  * slicingtr.cpp
  *
- *  Created on: Oct 6, 2016
+ *  Created on: Oct 21, 2016
  *      Author: Blaine Plastow
  *              A02235496
  *              ECE6460
  *
  *    functions to create the slicing tree from the polish expression, and find the area.
+ *    Has the annealing function to optimize the tree and find the best area
  ********************************************************************************************/
 
 #include <fstream>
@@ -22,7 +23,9 @@
 
 using namespace std;
 
-//read in values from file for module, area, and aspect ratio
+/*******************************************************************************
+* Function to read in values from file for module, area, and aspect ratio
+********************************************************************************/
 void readin(vector<char> &value, vector<double> &width, vector<double> &height){
 	char testValue;
 	double areaNode;
@@ -335,10 +338,13 @@ stnode *tree_from_NPE(vector<char> &expr,int size, ststack *stack)
 	return node;                               //return the completed tree
 }
 
-
+/***************************************************************************************************
+ * Function to perform the annealing on the topology to find the best area for floorplan
+ ***************************************************************************************************/
 void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& width, vector<double>& height)
 {
-	double BestCost, costOfbest, ratio=0.85, lamdatf=.95, P=.99, epsilon=.001, t0=0, t, oldCost=0, costNew=0, changeOfcost=0;
+	//setup initial values
+	double BestCost, costOfbest, ratio=0.85, lamdatf=.005, P=.99, epsilon=.001, t0=-1, t, oldCost=0, costNew=0, changeOfcost=0;
 	int nmoves=10, iseed = 3, n=6, mt=12, uphill, reject, j=0, i=0, N;
 	ststack *stack;
 	int size;
@@ -347,16 +353,18 @@ void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& widt
 	bool test=true;
 	vector<char> newE ,E, Best;
 	for(int r=0; r<Enot.size(); r++)
-	{E.push_back(Enot[r]); Best.push_back(Enot[r]); newE.push_back(Enot[r]);}
+	{
+		//setup initial NPE
+		E.push_back(Enot[r]); Best.push_back(Enot[r]); newE.push_back(Enot[r]);
+	}
 	vector <double> right, left;
 	stack = newstack();
 	size = newE.size()-1;
-	stnode *root = tree_from_NPE(newE, size, stack);//creates a node for the base of tree
+	stnode *root = tree_from_NPE(newE, size, stack);//creates a tree from the NPE
 	size=newE.size();
 	assignValues(value, width, height, root, size);
-	oldCost= areaFunct(right, left, root);
-	BestCost=oldCost;
-	//deleteTree(root);
+	oldCost= areaFunct(right, left, root);          //calculate the cost of the initial NPE
+	BestCost=oldCost;                               //set initial best cost
 	double avgCost[1000];
 	int z=0;
 	while(z<1000)
@@ -500,12 +508,12 @@ void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& widt
 
 		if(avgCost[m]>0)
 		{
-			t0+=avgCost[m];
+			t0 = t0 + avgCost[m];      //find the average number of moves to use for the initial temperature
 			averageNumbers++;
 		}
 	}
 	t0=t0/averageNumbers;
-	t0=t0/log(P);
+	t0=-t0/log(P);
 	n=Enot.size();
 	N = n*nmoves;
 	t = t0;
@@ -531,15 +539,13 @@ void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& widt
 		mt=uphill=reject=0; // intializes everything to 0
 		do //checks to see if uphill and temp are good
 		{
-		//	i=newE.size()-1;
 			i=rand()%newE.size(); // gets the random number to choose which value to randomly move
 			switch (rand()%3+1) // chooses a random number from 1 to 3 to choose a case
-		//	switch (3)
 			{
 				case 1:{
 
 						while(newE[i] == 'V' || newE[i] == 'H')// checks to make sure that the random value is an operand not an operator
-                                                {
+                        {
 							i++;
 							if(newE.size()== i)
 							{
@@ -573,13 +579,13 @@ void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& widt
 							{
 								j--; if(i==j){j--;}
 							}
-						}//finds it wheter it is is before or after the value
+						}//finds it weather it is is before or after the value
 						char tempvalue = newE[i]; //temp value
 						newE[i]=newE[j]; //stores it
 						newE[j]=tempvalue; // stores the other value
 						//swap values
 						break;//leaves case statement
-						}
+					}
 					case 2:
 					{
 							while(newE[i] != 'V' && newE[i] != 'H')//checks to make sure that i find an operator
@@ -653,7 +659,7 @@ void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& widt
 							} // rejects it since its not proven
 							break; //leaves the case statemts
 					}
-			} count++;
+			} //count++;
 		mt=mt+1; //increases move count
 		vector <double> right, left;
 		stack = newstack();
@@ -667,20 +673,22 @@ void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& widt
 		double testVal= exp(-changeOfcost/t);
 		double random = rand()%100+1;
 		random=random/100;
-			if(changeOfcost<0 || random < testVal ) // checks to see if the change is better or if it changes randomly
+			if((changeOfcost <= 0) || (random < testVal )) // checks to see if the change is better or if it changes randomly
 			{
+				for(int r=0; r<E.size(); r++)
+				{
+					E[r]=newE[r];
+				}
 				if(changeOfcost > 0) // stores E as the new e since it was accepted
 				{
-					for(int r=0; r<Enot.size(); r++)
-                                        {E[r]=newE[r];}
 					uphill+=1;
 				}
+
 				if(costNew < BestCost)
 				{
-
-					for(int r=0; r<Enot.size(); r++)
+					for(int r=0; r<E.size(); r++)
         			{
-						Best[r]=newE[r];
+						Best[r] = E[r];
         			}
 
 					stack = newstack();
@@ -695,14 +703,15 @@ void annealingFunc(vector<char>& Enot, vector<char>& value, vector<double>& widt
 			{
 					reject+=1; //rejects it because it isn't a good move
 			}
-		oldCost=costNew;
-		}while((uphill <= N) && (mt <= 2*N));
+		//oldCost=costNew;
+		}while((uphill < N) && (mt < 2*N));
 		t=lamdatf*t;
 
 	}while(((reject/mt) <= .95) && (t>epsilon));
 
-
+	cout << "Final optimized topology: ";
 	printNPE(root3);
-	cout<<"Best cost:"<<BestCost;
+	cout << endl;
+	cout<<"Final cost: "<<BestCost;
 
 }

@@ -1,13 +1,14 @@
 /*******************************************************************************************
- * homework3.cpp
+ * homework4.cpp
  *
- *  Created on: Oct 6, 2016
+ *  Created on: Oct 21, 2016
  *      Author: Blaine Plastow
  *              A02235496
- *              Homework 3
+ *              Homework 4
  *              ECE6460
  *
- * contains main function and prints the areas from different trees
+ * contains main function and prints the initial area and topology and also
+ * the optimized topology and area after annealing.
  *******************************************************************************************/
 
 
@@ -40,19 +41,18 @@ int main(){
 
 	size = NPE.size()-1;
 	stack = newstack();
-	stnode *root = tree_from_NPE(NPE,size, stack);
-	size=NPE.size();
+	stnode *root = tree_from_NPE(NPE,size, stack);  //create initial tree from
+	size=NPE.size();                                //NPE
 	assignValues(value, width, height, root,size );
-	cout << "NPE for tree: ";
+	cout << "Initial topology: ";
 	printNPE(root);                //Print out the polish expression for the tree
 	cout << endl;
-	area=areaFunct(right,left, root);  //calculate the area for the tree and print it out
-	cout << "AREA: " << area;
-	cout << "\n";
+	area = areaFunct(right,left, root);  //calculate the area for the tree and print it out
+	cout << "Initial cost: " << area;
+	cout << endl;
+	cout << endl;
 
 	annealingFunc(NPE, value, width, height);
 
 	return 0;
 }
-
-
